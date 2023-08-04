@@ -2,12 +2,25 @@ const express = require('express');
 const cors = require('cors');
 const app = express(); 
 const port = '8080';
-const models=require('./models')
+const models=require('./models');
+const multer=require('multer');
+
+const upload = multer({
+    storage: multer.diskStorage({
+        destination: function (req, file, cb) {
+            cb(null, "uploads/");
+        },
+        filename: function (req, file, cb) {
+        cb(null, file.originalname);
+        },
+    }),
+});
 
 
 
 app.use(express.json());
 app.use(cors());  //브라우저의 cors 이슈를 막기위해 사용하는 코드
+app.use('/uploads',express.static('uploads')); //이미지 경로 수정
 
 app.get('/products',(req,res)=>{
     /* const query=req.query;
@@ -24,29 +37,41 @@ app.get('/products',(req,res)=>{
 
         {
             /* limit:1 */
-            order:[
-                ['createdAt', 'DESC'] //order: 순서: 오름차순: ASC , 내림차순: DESC  
+            order:[['createdAt', 'DESC']], //order: 순서: 오름차순: ASC , 내림차순: DESC  
+            attributes:[
+                "id", 
+                "name", 
+                "price", 
+                "seller", 
+                "imageUrl", 
+                "createdAt"
             ],
-            attributes:["id", "name", "price", "seller", "imageUrl", "createdAt"],
         }
     )
     .then((result)=>{
         console.log("PRODUCT:",result);
         res.send({
-            product:result,
+            product:result,  //res.send({ result });
         })
     })
     .catch((error)=>{
         console.error(error);
-        res.send('에러 발생')
+        res.status(400).send('에러 발생')
     })
 })
+
+
 
 
 
 app.post('/products', (req, res) => {
     const body=req.body;
     const {name, description, seller, price, imageUrl} = body;
+    
+    if(!name || !description || !seller || !price || !imageUrl){
+        res.send("모든 필드를 입력해주세요")
+    }
+    
     models.Product.create({
         name,
         description,
@@ -58,9 +83,11 @@ app.post('/products', (req, res) => {
         res.send({result, })
     }).catch((error) =>{
         console.error(error);
-        res.send('문제발생')
+        res.status(400).send('문제발생')
     })
 })
+
+
 
 
 app.get("/products/:id", (req, res)=>{
@@ -78,9 +105,17 @@ app.get("/products/:id", (req, res)=>{
         })
     }).catch((error)=>{
         console.error(error);
-        res.send('상품 조회 에러가 발생함')
+        res.status(400).send('상품 조회 에러가 발생함')
     })
 })
+
+app.post('/image',upload.single('image'),(req,res)=>{
+    const file=req.file;
+    res.send({
+        imageUrl:file.path
+    })
+})
+
 
 app.listen(port, ()=>{
     models.sequelize.sync()
